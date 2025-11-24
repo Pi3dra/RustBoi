@@ -393,8 +393,6 @@ impl PPU {
             .push_tile_from_bytes(low_byte, high_byte, Some(obj));
     }
 
-    
-
     fn mix_fifo_pixels(&mut self) -> u8 {
         let lcdc = self.fetch_lcdc_register();
 

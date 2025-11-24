@@ -30,7 +30,7 @@ use std::fmt;
 // ================================== CPU =============================
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Interrupt {
     VBlank = 0x40,
     LCDStat = 0x48,
@@ -126,7 +126,7 @@ impl CPU {
 
         let executing = (0, InstrPointer::None);
 
-        CPU {
+        let mut cpu = CPU {
             registers,
             bus,
             clock: 0,
@@ -137,9 +137,11 @@ impl CPU {
             cb_table,
             executing,
             div_counter: 0,
-        }
-    }
+        };
 
+        cpu.write(IE, 0x10);
+        cpu
+    }
     pub fn step(&mut self) -> u8 {
         self.update_ime();
         if self.halted {
@@ -150,17 +152,15 @@ impl CPU {
                 if self.ime {
                     self.handle_interrupts();
                 } else {
-                    self.registers.pc = self.registers.pc.wrapping_add(1); // Skip 1st instr after HALT
+                    self.registers.pc = self.registers.pc.wrapping_add(1); // Skip 1st instr after HALT 
                 }
             }
             return 4;
         }
-
         //CPU::print_state(self);
 
         let pc = self.registers.get_16register(PC);
         let opcode = self.read(pc);
-
         let cycles: u8 = {
             if opcode == 0xCB {
                 let opcode2 = self.read(self.registers.pc.wrapping_add(1));
@@ -171,7 +171,6 @@ impl CPU {
                 self.execute_from_instr(self.opcode_table[opcode as usize], opcode)
             }
         };
-
         self.handle_interrupts();
         cycles
     }
@@ -840,14 +839,47 @@ impl CPU {
             let mask = 1 << idx;
             let is_pending = pending & mask != 0;
             if is_pending {
+                if matches!(interrupt, Interrupt::Timer) {
+                    continue;
+                }
+                if matches!(interrupt, Interrupt::Joypad) {
+                    println!(
+                        "Servicing : {:?} IE : {} IF : {} Jumps to {:02X}",
+                        interrupt,
+                        self.read(IE),
+                        self.read(IF),
+                        *interrupt as u16
+                    );
+                }
+
                 let new_iflag = iflag & !mask;
                 self.write(IF, new_iflag);
-                self.ime = false;
-                self.ime_pending = false;
-                self.call(Flag(None), Value(*interrupt as u16));
-                break; //<- Only one interrupt per cycle/IME check
+                self.service_interrupt(*interrupt as u16);
+                return;
             }
         }
+    }
+
+    fn service_interrupt(&mut self, vector: u16) {
+        // Push current PC (points to next instruction)
+        let pc = self.registers.pc;
+        let (low, high) = (pc as u8, (pc >> 8) as u8);
+
+        let mut sp = self.registers.sp;
+        sp = sp.wrapping_sub(1);
+        self.memwrite(sp, high);
+        sp = sp.wrapping_sub(1);
+        self.memwrite(sp, low);
+        self.registers.sp = sp;
+
+        self.registers.pc = vector;
+
+        // Interrupt takes 20 cycles total (12 for push + 8 for jump)
+        self.clock = self.clock.wrapping_add(20);
+
+        // Disable interrupts
+        self.ime = false;
+        self.ime_pending = false;
     }
 
     //Timer
@@ -1118,5 +1150,3 @@ impl Registers {
         }
     }
 }
-
-// ================================== Memory =============================

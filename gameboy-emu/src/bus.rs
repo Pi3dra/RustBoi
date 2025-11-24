@@ -66,8 +66,38 @@ impl Bus {
         if cpuread && !self.cpu_can_acces(address) {
             0xFF
         } else {
+            if address == 0xFF00 {
+                return self.read_joyp();
+            }
             self.memory.read(address)
         }
+    }
+
+    fn read_joyp(&self) -> u8 {
+        let select = self.memory.io[0] & 0x30; // JOYP select bits
+        let pressed = self.memory.io[0x30]; // stored pressed mask (we will write here)
+
+        let mut result = 0xCF; // default: upper bits = 1, lower bits = 1 (not pressed)
+
+        // keep select bits
+        result = (result & 0xCF) | select;
+
+        // Active–low input mapping
+
+        // If P15 (buttons) selected (bit 4 == 0)
+        if select & 0x10 == 0 {
+            let buttons = (pressed >> 4) & 0x0F; // A,B,Select,Start
+            result &= !buttons;
+        }
+
+        // If P14 (directions) selected (bit 5 == 0)
+        if select & 0x20 == 0 {
+            let directions = pressed & 0x0F; // Right,Left,Up,Down
+            result &= !directions;
+        }
+
+        println!("Polling {:0b}", result);
+        result
     }
 
     fn get_ppu_state(&mut self) -> State {
@@ -147,6 +177,11 @@ impl Memory {
         // Handle serial transfer for Blargg tests
         self.handle_blarg_output(address, value);
         let (region, address, _, writable) = self.map(address);
+
+        if address == 0xFFFF {
+            println!("Writing to IE {}", value);
+        }
+
         if writable {
             region[address] = value;
         }

@@ -1,6 +1,6 @@
 use libretro_rs::{
-    RetroAudioInfo, RetroCore, RetroEnvironment, RetroGame, RetroLoadGameResult, RetroRuntime,
-    RetroSystemInfo, RetroVideoInfo, libretro_core,
+    RetroAudioInfo, RetroCore, RetroEnvironment, RetroGame, RetroJoypadButton, RetroLoadGameResult,
+    RetroRuntime, RetroSystemInfo, RetroVideoInfo, libretro_core,
 };
 
 mod bus;
@@ -41,6 +41,7 @@ struct RustBoiCore {
     gameboi: GameBoi,
 }
 
+use RetroJoypadButton::*;
 impl RetroCore for RustBoiCore {
     fn init(_env: &RetroEnvironment) -> Self {
         let mut core = Self {
@@ -79,6 +80,24 @@ impl RetroCore for RustBoiCore {
         self.gameboi = GameBoi::new();
     }
     fn run(&mut self, _env: &RetroEnvironment, runtime: &RetroRuntime) {
+        let mut pressed = 0xFF;
+
+        // Set bits for pressed buttons (bit = pressed)
+        if runtime.is_joypad_button_pressed(0, Right) || runtime.is_joypad_button_pressed(0, A) {
+            pressed &= !0x01;
+        }
+        if runtime.is_joypad_button_pressed(0, Left) || runtime.is_joypad_button_pressed(0, B) {
+            pressed &= !0x02;
+        }
+        if runtime.is_joypad_button_pressed(0, Up) || runtime.is_joypad_button_pressed(0, Select) {
+            pressed &= !0x04;
+        }
+        if runtime.is_joypad_button_pressed(0, Down) || runtime.is_joypad_button_pressed(0, Start) {
+            pressed &= !0x08;
+        }
+
+        self.gameboi.receive_input(pressed);
+
         // Run one full frame → you get [u8; 23040] of color indices (0-3)
         let raw_frame: [u8; WIDTH * HEIGHT] = self.gameboi.step();
 
