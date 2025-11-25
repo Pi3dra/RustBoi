@@ -7,6 +7,7 @@ const STAT: u16 = 0xFF41;
 
 pub struct Bus {
     memory: Memory,
+    joypad: u8,
 }
 
 /*
@@ -23,7 +24,7 @@ pub trait BusAccess {
 impl Bus {
     pub fn empty() -> Rc<RefCell<Self>> {
         let memory = Memory::new(vec![]);
-        Rc::new(RefCell::new(Self { memory }))
+        Rc::new(RefCell::new(Self { memory : memory, joypad :0 }))
     }
 
     //This loads from a path
@@ -73,10 +74,31 @@ impl Bus {
         }
     }
 
+    pub fn set_joypad(&mut self, value: u8){
+        self.joypad = value;
+    }
+
     fn read_joyp(&mut self) -> u8 {
-        let ff0 = self.memory.read(0xFF00 ) & 0b1111_1011;
-        println!("ff0 {:0b}, result {:0b}", ff0, ff0 & 0b1111_1011 | 0b0011_0111);
-        ff0 & 0b1111_1011 | 0b0010_0111
+        let ff0 = self.memory.read(0xFF00 );
+        //0b0000_0000
+        //Rather contradictory, but for nintendo 0 == selected
+        let select_dpad = (ff0 & 0b0001_0000) >> 4  == 0;
+        let select_buttons = (ff0 & 0b0010_0000) >> 5  == 0;
+
+        let result =
+        if select_dpad {
+            (self.joypad >> 4) & 0b0000_1111
+            //ff0 | (self.joypad >> 4 | 0b1101_0000)
+        } else if select_buttons {
+            self.joypad  & 0b0000_1111
+            //ff0 & (self.joypad | 0b1110_0000)
+        } else {
+            0xFF
+        };
+
+        //println!("Polling Input FF00 : {:08b} Result : {:08b} Joypad : {:08b}", ff0, result,self.joypad);
+        result
+
     }
 
     fn get_ppu_state(&mut self) -> State {

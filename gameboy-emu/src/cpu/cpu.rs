@@ -839,6 +839,8 @@ impl CPU {
             let mask = 1 << idx;
             let is_pending = pending & mask != 0;
             if is_pending {
+                
+                
                 if matches!(interrupt, Interrupt::Timer) {
                     continue;
                 }

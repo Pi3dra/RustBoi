@@ -80,21 +80,18 @@ impl RetroCore for RustBoiCore {
         self.gameboi = GameBoi::new();
     }
     fn run(&mut self, _env: &RetroEnvironment, runtime: &RetroRuntime) {
-        let mut pressed = 0xFF;
 
+        let mut pressed = 0xFF;
         // Set bits for pressed buttons (bit = pressed)
-        if runtime.is_joypad_button_pressed(0, Right) || runtime.is_joypad_button_pressed(0, A) {
-            pressed &= !0x01;
-        }
-        if runtime.is_joypad_button_pressed(0, Left) || runtime.is_joypad_button_pressed(0, B) {
-            pressed &= !0x02;
-        }
-        if runtime.is_joypad_button_pressed(0, Up) || runtime.is_joypad_button_pressed(0, Select) {
-            pressed &= !0x04;
-        }
-        if runtime.is_joypad_button_pressed(0, Down) || runtime.is_joypad_button_pressed(0, Start) {
-            pressed &= !0x08;
-        }
+        if runtime.is_joypad_button_pressed(0, A) { pressed &= 0b1111_1110};
+        if runtime.is_joypad_button_pressed(0, B) {pressed &= 0b1111_1101};
+        if runtime.is_joypad_button_pressed(0, Select) {pressed &= 0b1111_1011};
+        if runtime.is_joypad_button_pressed(0, Start) {pressed &= 0b1111_0111};
+
+        if runtime.is_joypad_button_pressed(0, Right){pressed &= 0b1110_1111};
+        if runtime.is_joypad_button_pressed(0, Left){pressed &= 0b1101_1111};
+        if runtime.is_joypad_button_pressed(0, Up) {pressed &= 0b1011_1111};
+        if runtime.is_joypad_button_pressed(0, Down){pressed &= 0b0111_1111};
 
         self.gameboi.receive_input(pressed);
 

@@ -30,22 +30,9 @@ impl GameBoi {
 
     pub fn receive_input(&mut self, pressed_mask: u8) {
         let mut bus = self.bus.borrow_mut();
-        let current_select = bus.read(0xFF00, false);
+        bus.set_joypad(pressed_mask);
 
         /*
-        println!(
-            "INPUT mask {:0b} 0xFF00 : {:0b} IE : {:0b} IF : {:0b}",
-            pressed_mask,
-            bus.read(0xFF00, false),
-            bus.read(IE, false),
-            bus.read(IF, false)
-        );*/
-        // Combine: keep select lines (bits 4-5), apply pressed buttons (bits 0-3)
-        let joyp = (current_select & 0x30) | (pressed_mask & 0x0F);
-
-        let old = bus.read(0xFF00, false);
-        bus.write(0xFF00, joyp, false);
-
         // Trigger joypad interrupt on any falling edge in lower 4 bits
         if (old & 0x0F) == 0x0F && (joyp & 0x0F) != 0x0F {
             let if_reg = bus.read(IF, false);
@@ -61,6 +48,7 @@ impl GameBoi {
                 bus.read(IF, false)
             );
         }
+        */
     }
 
     pub fn step(&mut self) -> [u8; 23040] {
