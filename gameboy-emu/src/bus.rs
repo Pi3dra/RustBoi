@@ -73,31 +73,10 @@ impl Bus {
         }
     }
 
-    fn read_joyp(&self) -> u8 {
-        let select = self.memory.io[0] & 0x30; // JOYP select bits
-        let pressed = self.memory.io[0x30]; // stored pressed mask (we will write here)
-
-        let mut result = 0xCF; // default: upper bits = 1, lower bits = 1 (not pressed)
-
-        // keep select bits
-        result = (result & 0xCF) | select;
-
-        // Active–low input mapping
-
-        // If P15 (buttons) selected (bit 4 == 0)
-        if select & 0x10 == 0 {
-            let buttons = (pressed >> 4) & 0x0F; // A,B,Select,Start
-            result &= !buttons;
-        }
-
-        // If P14 (directions) selected (bit 5 == 0)
-        if select & 0x20 == 0 {
-            let directions = pressed & 0x0F; // Right,Left,Up,Down
-            result &= !directions;
-        }
-
-        println!("Polling {:0b}", result);
-        result
+    fn read_joyp(&mut self) -> u8 {
+        let ff0 = self.memory.read(0xFF00 ) & 0b1111_1011;
+        println!("ff0 {:0b}, result {:0b}", ff0, ff0 & 0b1111_1011 | 0b0011_0111);
+        ff0 & 0b1111_1011 | 0b0010_0111
     }
 
     fn get_ppu_state(&mut self) -> State {
