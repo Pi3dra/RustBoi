@@ -3,8 +3,7 @@
 const LCDC: u16 = 0xFF40;
 const STAT: u16 = 0xFF41; //Scrolling and misc
 const SCY: u16 = 0xFF42;
-const SCX: u16 = 0xFF43;
-const LY: u16 = 0xFF44;
+const SCX: u16 = 0xFF43; const LY: u16 = 0xFF44;
 const LYC: u16 = 0xFF45;
 //Palletes
 const BGP: u16 = 0xFF47;
@@ -488,6 +487,7 @@ impl PPU {
         //This supposes we are always right when changing state, and
         //We are thus  changing to state with a correct timing
         self.clock = 0;
+        println!("cleared clock");
         self.set_state(state.clone());
         self.check_stat_interrupt();
 
@@ -619,11 +619,13 @@ impl PPU {
 
         // Helper to consume cycles and detect overflow
         let mut consume = |duration: u16| -> u8 {
-            let total = self.clock + cycles as u16;
-            if total > duration {
-                let remainder = (total - duration) as u8;
-                overflow = Some(remainder);
-                remainder
+
+            let total = self.clock + cycles as u16; //112 + 32 -> 144 clock after execution
+            if total > duration { //144 > 80
+                let remainder = (total - duration); //After OAMSearch, we will have an overflow of
+                //64 cycles
+                overflow = Some(remainder); //Some(64)
+                remainder as u8 //64
             } else {
                 0
             }
@@ -631,44 +633,50 @@ impl PPU {
 
         /*
         );*/
+        println!("STEP {} cycles, {} clock", cycles, self.clock);
         let consumed = match self.state {
             OAMSearch => {
-                let remaining = consume(self.state_duration());
-                self.oamsearch(cycles.saturating_sub(remaining));
-                if remaining > 0 {
-                    self.change_to_state(PixelTransfer, remaining);
+                let remaining = consume(self.state_duration()); // 64
+                self.oamsearch(cycles.saturating_sub(remaining) as u8); // we give 112 - 64 , 48
+                // ticks to oam
+                if remaining > 0 { //yes
+                    self.change_to_state(PixelTransfer, remaining as u8); // change_to_state(64)
                 }
+                println!("OAMS {} - {}", cycles, remaining);
                 cycles - remaining
             }
 
             PixelTransfer => {
                 let remaining = consume(self.state_duration());
-                self.pixeltransfer(cycles.saturating_sub(remaining));
+                self.pixeltransfer(cycles.saturating_sub(remaining) as u8);
                 if remaining > 0 && self.popped_pixels >= (self.fine_scroll_x as u16 + 160) {
-                    self.change_to_state(HBlank, remaining);
+                    self.change_to_state(HBlank, remaining as u8);
                 }
+                println!("PixelT {} - {}", cycles, remaining);
                 cycles - remaining
             }
 
             HBlank => {
                 let remaining = consume(self.state_duration());
-                self.hblank(cycles);
+                self.hblank(cycles as u8); // I don't remember why I aint consuming here? 
                 if remaining > 0 {
                     let prev_ly = self.read(LY);
                     self.increment_ly();
                     let next_state = if prev_ly == 143 { VBlank } else { OAMSearch };
-                    self.change_to_state(next_state, remaining);
+                    self.change_to_state(next_state, remaining as u8);
                 }
+                println!("HBlank {} - {}", cycles, remaining);
                 cycles - remaining
             }
 
             VBlank => {
                 let remaining = consume(self.state_duration());
-                self.vblank(cycles.saturating_sub(remaining));
+                self.vblank(cycles.saturating_sub(remaining) as u8);
                 if remaining > 0 {
                     self.framebuffer = Some(self.viewport.clone());
-                    self.change_to_state(OAMSearch, remaining);
+                    self.change_to_state(OAMSearch, remaining as u8);
                 }
+                println!("VBlank {} - {}", cycles, remaining);
                 cycles - remaining
             }
 

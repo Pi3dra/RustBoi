@@ -55,7 +55,7 @@ impl GameBoi {
         while !self.ppu.is_frame_ready() {
             let cycles = self.cpu.step();
             //self.cpu.print_state();
-            self.ppu.step(cycles / 2);
+            self.ppu.step(cycles * 4);//TODO THIS SHOULD BE 4 BUT I AM GETTING OVERFLOWS
             //ppu.print_state();
         }
         let frame = self.ppu.yield_frame();
