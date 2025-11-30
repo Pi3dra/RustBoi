@@ -1,4 +1,3 @@
-#![allow(dead_code, unused_imports)]
 use super::CPU;
 use super::{FlagCondition, MemAdress, Operand, Reg8, Reg16};
 
@@ -121,14 +120,14 @@ impl CPU {
 
         //SPECIAL CASES
         table[0x00] = Const(CPU::nop, 4);
-        table[0x10] = Unop(CPU::stop, Imm8, 4);
+        table[0x10] = Const(CPU::stop, 4);
 
-        table[0x07] = Const(CPU::rlca, 4); //Not implemented!
-        table[0x17] = Const(CPU::rla, 4); //Not implemented!
-        table[0x27] = Const(CPU::daa, 4); //Not implemented!
+        table[0x07] = Const(CPU::rlca, 4);
+        table[0x17] = Const(CPU::rla, 4);
+        table[0x27] = Const(CPU::daa, 4);
         table[0x37] = Const(CPU::scf, 4);
 
-        table[0x0F] = Const(CPU::rrca, 4); //Not implemented!
+        table[0x0F] = Const(CPU::rrca, 4);
         table[0x1F] = Const(CPU::rra, 4); //Not implemented!
         table[0x2F] = Const(CPU::cpl, 4); //Not implemented!
         table[0x3F] = Const(CPU::ccf, 4);
@@ -407,104 +406,3 @@ impl CPU {
         }
     }
 }
-
-/*
-    *
-* Triying to make something compact:
-*
-*
-* ================= Choice 1 =================
-*
-* Represent everything as an enum
-*
-*pub enum InstrPointer {
-*    Binop(fn(&mut CPU, Operand, Operand), Operand, Operand, u16),
-*    Unop(fn(&mut CPU, Operand), Operand, u16),
-*    Const(fn(&mut CPU), u16),
-*    None, //For non implemented funcs
-*}
-*
-* The Operand enum:
-* Rust picks largets choice + discriminant, aligned.
-* so we have Address(MemAdress) = 4 bytes = 8 bytes alignes
-*
-* So our enum would store
-*
-* 2*8 bytes for Operands +  2 bytes for u16 + 8 bytes for  function = 26 bytes, 32 padded
-*
-*
-*
-* ================= Choice 2 =================
-*
-* -> Flatten all operands to u8
-* -> make all functions binop?
-* -> Add a function array like so:
-
-struct InstructionEntry {
-    op1: OperandCode,
-    op2: OperandCode,
-    func_index: u8,
-}
-
-type InstrFn = fn(&mut CPU, Operand, Operand);
-static INSTR_FUNCS: &[InstrFn] = &[
-    CPU::nop,
-    CPU::ld_u8,
-];
-
-// Example: 256-entry opcode table
-static OPCODE_TABLE: [InstructionEntry; 256] = {
-    use OperandCode::*;
-    [
-        // 0x00: NOP
-        InstructionEntry { op1: None, op2: None, func_index: 0 },
-        // 0x01: LD BC, d16
-        InstructionEntry { op1: R16BC, op2: Imm16, func_index: 5 },
-        // 0x02: LD (BC), A
-        InstructionEntry { op1: AddrR16SP, op2: R8A, func_index: 1 },
-        // 0x03: INC BC
-        InstructionEntry { op1: R16BC, op2: None, func_index: 3 },
-        // Fill in the rest...
-        InstructionEntry { op1: None, op2: None, func_index: 0 }; 256
-    ]
-};
-
-// During execution:
-fn execute_opcode(cpu: &mut CPU, opcode: u8) {
-    let entry = OPCODE_TABLE[opcode as usize];
-    let func = INSTR_FUNCS[entry.func_index as usize];
-
-    // Convert OperandCode back to Operand for the CPU function
-    let op1 = operandcode_to_operand(entry.op1, cpu);
-    let op2 = operandcode_to_operand(entry.op2, cpu);
-
-    func(cpu, op1, op2);
-}
-
-// Helper to decode OperandCode to Operand
-fn operandcode_to_operand(code: OperandCode, cpu: &CPU) -> Operand {
-    use OperandCode::*;
-    match code {
-        None => Operand::Value(0), // unused operand
-        R8A => Operand::R8(Reg8::A),
-        R8B => Operand::R8(Reg8::B),
-        R8C => Operand::R8(Reg8::C),
-        R8D => Operand::R8(Reg8::D),
-        R8E => Operand::R8(Reg8::E),
-
-This would use 3-4 bytes per instruction ~ 700 bytes, really compact, but fucking unreadable
-might be more readable if we also flatten the instructions? beurk
-*
-*
-*
-*
-*
-*
-* ================= Choice 2 =================
-*
-* Decode codes as they come?
-*
-* Advantages, no used memory, O(1) lookup and reuses all we already have!
-*
-*
-*/

@@ -44,31 +44,11 @@ struct RustBoiCore {
 use RetroJoypadButton::*;
 impl RetroCore for RustBoiCore {
     fn init(_env: &RetroEnvironment) -> Self {
-        let mut core = Self {
+        println!("INIT!");
+        Self {
             framebuffer: [0; WIDTH * HEIGHT],
             gameboi: GameBoi::new(),
-        };
-        println!("INIT!");
-        core.gameboi.load_rom_from_path("dmg-acid2.gb");
-
-        /*
-        // Fill background with the lightest DMG color
-        let light = dmg_to_rgb565(3);
-        core.framebuffer.fill(light);
-
-        // Draw a dark square (for testing)
-        let dark = dmg_to_rgb565(0);
-        let square_size = 64;
-        let start_x = (WIDTH - square_size) / 2;
-        let start_y = (HEIGHT - square_size) / 2;
-
-        for y in start_y..(start_y + square_size) {
-            for x in start_x..(start_x + square_size) {
-                core.framebuffer[y * WIDTH + x] = dark;
-            }
         }
-        */
-        core
     }
 
     fn get_system_info() -> RetroSystemInfo {
@@ -76,22 +56,38 @@ impl RetroCore for RustBoiCore {
     }
 
     fn reset(&mut self, _env: &RetroEnvironment) {
+        //should reload the game? 
         self.framebuffer = [0xFF; WIDTH * HEIGHT];
         self.gameboi = GameBoi::new();
     }
     fn run(&mut self, _env: &RetroEnvironment, runtime: &RetroRuntime) {
-
         let mut pressed = 0xFF;
         // Set bits for pressed buttons (bit = pressed)
-        if runtime.is_joypad_button_pressed(0, A) { pressed &= 0b1111_1110};
-        if runtime.is_joypad_button_pressed(0, B) {pressed &= 0b1111_1101};
-        if runtime.is_joypad_button_pressed(0, Select) {pressed &= 0b1111_1011};
-        if runtime.is_joypad_button_pressed(0, Start) {pressed &= 0b1111_0111};
+        if runtime.is_joypad_button_pressed(0, A) {
+            pressed &= 0b1111_1110
+        };
+        if runtime.is_joypad_button_pressed(0, B) {
+            pressed &= 0b1111_1101
+        };
+        if runtime.is_joypad_button_pressed(0, Select) {
+            pressed &= 0b1111_1011
+        };
+        if runtime.is_joypad_button_pressed(0, Start) {
+            pressed &= 0b1111_0111
+        };
 
-        if runtime.is_joypad_button_pressed(0, Right){pressed &= 0b1110_1111};
-        if runtime.is_joypad_button_pressed(0, Left){pressed &= 0b1101_1111};
-        if runtime.is_joypad_button_pressed(0, Up) {pressed &= 0b1011_1111};
-        if runtime.is_joypad_button_pressed(0, Down){pressed &= 0b0111_1111};
+        if runtime.is_joypad_button_pressed(0, Right) {
+            pressed &= 0b1110_1111
+        };
+        if runtime.is_joypad_button_pressed(0, Left) {
+            pressed &= 0b1101_1111
+        };
+        if runtime.is_joypad_button_pressed(0, Up) {
+            pressed &= 0b1011_1111
+        };
+        if runtime.is_joypad_button_pressed(0, Down) {
+            pressed &= 0b0111_1111
+        };
 
         self.gameboi.receive_input(pressed);
 

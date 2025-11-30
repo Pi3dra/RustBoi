@@ -1,5 +1,3 @@
-#![allow(dead_code, unused_variables)]
-
 use crate::bus::Bus;
 use crate::bus::BusAccess;
 use std::cell::RefCell;
@@ -7,8 +5,7 @@ use std::rc::Rc;
 
 //Try this: https://robertheaton.com/gameboy-doctor/
 
-const ZERO: u8 = 7; //Z
-const SUBSTRACTION: u8 = 6; //N
+const ZERO: u8 = 7; //Z const SUBSTRACTION: u8 = 6; //N
 const HALFCARRY: u8 = 5; //H
 const CARRY: u8 = 4; //C
 
@@ -72,7 +69,7 @@ impl BusAccess for CPU {
 }
 
 impl CPU {
-    pub fn print_state(&mut self) {
+    pub fn _print_state(&mut self) {
         let pc_mem = [
             self.read(self.registers.pc),
             self.read(self.registers.pc.wrapping_add(1)),
@@ -173,17 +170,6 @@ impl CPU {
         };
         self.handle_interrupts();
         cycles
-    }
-
-    pub fn run(&mut self) {
-        loop {
-            self.step();
-            /* Optional: safety cutoff to prevent infinite loops
-            if self.clock > 50_000_000 {
-                println!("❌ Timeout or infinite loop. Test failed or hanging.");
-                break;
-            }*/
-        }
     }
 
     fn execute_from_instr(&mut self, instr: InstrPointer, opcode: u8) -> u8 {
@@ -445,7 +431,7 @@ impl CPU {
 
     pub(crate) fn inc(&mut self, op1: Operand) {
         let value: u8 = self.get_operand_as_u8(op1);
-        let (result, overflowed) = value.overflowing_add(1);
+        let result = value.wrapping_add(1);
 
         //Addition always stores back on a register
         self.set_operand_from_u8(op1, result);
@@ -565,10 +551,10 @@ impl CPU {
     }
 
     pub(crate) fn jp(&mut self, condition: Operand, address: Operand) {
-        let address = self.get_operand_as_u16(address);
+        let addr: u16 = self.get_operand_as_u16(address);
         if self.check_condition(condition) {
-            self.registers.set_16register(PC, address);
-            if matches!(R16(HL), address) {
+            self.registers.set_16register(PC, addr);
+            if matches!(address, R16(HL)) {
                 self.clock = self.clock.wrapping_add(4);
             } else {
                 self.clock = self.clock.wrapping_add(16);
@@ -637,7 +623,7 @@ impl CPU {
             self.registers.set_16register(SP, sp);
             self.registers.set_16register(PC, address);
 
-            if matches!(Operand::Flag(None), condition) {
+            if matches!(condition, Operand::Flag(None)) {
                 self.clock = self.clock.wrapping_add(16 as u64);
                 self.clock += 16;
             } else {
@@ -792,7 +778,7 @@ impl CPU {
         self.update_flags(false, false, false, keep_carry);
     }
 
-    pub(crate) fn stop(&mut self, op: Operand) {
+    pub(crate) fn stop(&mut self) {
         self.reset_div();
         //println!("STOP");
         //TODO: RESET DIV ON STOP
@@ -839,8 +825,6 @@ impl CPU {
             let mask = 1 << idx;
             let is_pending = pending & mask != 0;
             if is_pending {
-                
-                
                 if matches!(interrupt, Interrupt::Timer) {
                     continue;
                 }
@@ -940,7 +924,7 @@ impl CPU {
     }
 
     fn advance_timer(&mut self, cycles: u8) {
-        for i in 0..cycles {
+        for _ in 0..cycles {
             self.tick_timer_once();
         }
     }

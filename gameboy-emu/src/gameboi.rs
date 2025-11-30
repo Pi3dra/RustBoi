@@ -4,7 +4,7 @@ use crate::ppu::PPU;
 use std::cell::RefCell;
 use std::rc::Rc;
 const IF: u16 = 0xFF0F;
-const IE: u16 = 0xFFFF; //Interrupt enable
+//const IE: u16 = 0xFFFF;
 
 pub struct GameBoi {
     cpu: CPU,
@@ -30,32 +30,24 @@ impl GameBoi {
 
     pub fn receive_input(&mut self, pressed_mask: u8) {
         let mut bus = self.bus.borrow_mut();
-        bus.set_joypad(pressed_mask);
+        let trigger_interrupt = bus.set_joypad(pressed_mask);
 
-        /*
-        // Trigger joypad interrupt on any falling edge in lower 4 bits
-        if (old & 0x0F) == 0x0F && (joyp & 0x0F) != 0x0F {
+        if trigger_interrupt {
             let if_reg = bus.read(IF, false);
             bus.write(IF, if_reg | 0x10, false);
-            //let ie = bus.read(IE, false);
-            //bus.write(IE, 0b10000 | ie, false);
-
-            println!(
-                "INPUT INTERRUPT SET {:0b} 0xFF00 : {:0b} IE : {:0b} IF : {:0b}",
-                pressed_mask,
-                bus.read(0xFF00, false),
-                bus.read(IE, false),
-                bus.read(IF, false)
-            );
         }
-        */
     }
 
     pub fn step(&mut self) -> [u8; 23040] {
         while !self.ppu.is_frame_ready() {
             let cycles = self.cpu.step();
             //self.cpu.print_state();
-            self.ppu.step(cycles * 4);//TODO THIS SHOULD BE 4 BUT I AM GETTING OVERFLOWS
+            //TODO THIS SHOULD BE 4 BUT I AM GETTING OVERFLOWS
+            //Interesting bug info
+            //buttontest.gb = *4 completely breaks it and doesn't show anymore
+            //boxxle.gb = *4 show a bugged intro animation instead of blank
+            //
+            self.ppu.step(cycles * 4); 
             //ppu.print_state();
         }
         let frame = self.ppu.yield_frame();
