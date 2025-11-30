@@ -1,10 +1,8 @@
-ROM_FILE = "dmg-acid2.gb"  # replace with your ROM path
+ROM_FILE = "dmg-acid2.gb" 
 
-# Load ROM
 with open(ROM_FILE, "rb") as f:
     rom = f.read()
 
-# Make sure we have at least 32 KB
 rom_size = len(rom)
 dump_size = min(32 * 1024, rom_size)  # 32 KB or ROM size if smaller
 

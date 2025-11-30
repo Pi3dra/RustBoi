@@ -1,9 +1,9 @@
-//LCD controlppu
-#![allow(unused_variables, unused, dead_code)]
+//LCD control ppu
 const LCDC: u16 = 0xFF40;
 const STAT: u16 = 0xFF41; //Scrolling and misc
 const SCY: u16 = 0xFF42;
-const SCX: u16 = 0xFF43; const LY: u16 = 0xFF44;
+const SCX: u16 = 0xFF43;
+const LY: u16 = 0xFF44;
 const LYC: u16 = 0xFF45;
 //Palletes
 const BGP: u16 = 0xFF47;
@@ -33,11 +33,6 @@ use std::rc::Rc;
 const WIDTH: usize = 160;
 const HEIGHT: usize = 144;
 
-enum TileIndexing {
-    Unsigned,
-    Signed,
-}
-
 // ========== Bus acces for both PPU, and PixelFetcher ==========
 
 macro_rules! impl_bus_access {
@@ -60,7 +55,7 @@ impl_bus_access!(PixelFetcher);
 // ========== Important registers ==========
 
 struct LcdcRegister {
-    ppu_enabled: bool,
+    _ppu_enabled: bool,   //not really used
     window_tilemap: bool, // 0->0x9800-0x9BFF 1->0x9C00-0x9FFF
     window_enabled: bool,
     bg_window_tiles: bool, // 0->0x8800-0x97FF 1->0x8000-0x8FFF
@@ -73,7 +68,7 @@ struct LcdcRegister {
 impl LcdcRegister {
     fn new(register: u8) -> Self {
         Self {
-            ppu_enabled: register & 0x80 != 0,     // Bit 7
+            _ppu_enabled: register & 0x80 != 0,    // Bit 7
             window_tilemap: register & 0x40 != 0,  // Bit 6
             window_enabled: register & 0x20 != 0,  // Bit 5
             bg_window_tiles: register & 0x10 != 0, // Bit 4
@@ -86,11 +81,11 @@ impl LcdcRegister {
 }
 
 pub struct StatRegister {
-    lyc_select: bool,
+    _lyc_select: bool,
     mode2: bool,
     mode1: bool,
     mode0: bool,
-    lyc_compare: bool,
+    _lyc_compare: bool,
     ppu_state: u8,
 }
 
@@ -98,13 +93,13 @@ impl StatRegister {
     pub fn new(register: u8) -> Self {
         Self {
             //These Bits allows the CPU, to tell the PPU, when to enable a STAT interrupt!
-            lyc_select: register & 0x40 != 0,
+            _lyc_select: register & 0x40 != 0,
             mode2: register & 0x20 != 0, // -> Interrupt on OAM Search
             mode1: register & 0x10 != 0, // -> Interrupt on VBlank
             mode0: register & 0x08 != 0, // -> Interrupt on HBlank
             // Other flags
-            lyc_compare: register & 0x04 != 0, //  LY==LYC
-            ppu_state: register & 0x03,        // 0: HBlank  1:VBlank 2:OAM 3:Drawing
+            _lyc_compare: register & 0x04 != 0, //  LY==LYC
+            ppu_state: register & 0x03,         // 0: HBlank  1:VBlank 2:OAM 3:Drawing
         }
     }
 
@@ -147,13 +142,9 @@ impl Obj {
 // ============ PPU ============
 
 type TileBytes = [u8; 16];
-type Tile = [[u8; 8]; 8];
-type TileMapIndexed = [[u8; 32]; 32];
-type TileMapTiles = [[Tile; 32]; 32];
 
 #[derive(Clone, Debug)]
 pub enum State {
-    Idle = 4,
     OAMSearch = 2,
     PixelTransfer = 3,
     HBlank = 0,
@@ -196,7 +187,7 @@ impl PPU {
         let popped_pixels = 0;
         let line_objs = None;
 
-        let mut ppu = Self {
+        let ppu = Self {
             bus,
             framebuffer,
             viewport,
@@ -212,15 +203,6 @@ impl PPU {
         };
 
         ppu
-    }
-
-    pub fn print_state(&self) {
-        println!(
-            "State {:?} LY {} Clock {}",
-            self.state,
-            self.read(LY),
-            self.clock
-        );
     }
 
     fn fetch_lcdc_register(&self) -> LcdcRegister {
@@ -316,7 +298,6 @@ impl PPU {
     }
 
     fn objects_at(&mut self, current_x: i32) -> Option<Obj> {
-        let ly = self.read(LY);
         let mut overlapping_objects: Vec<Obj> = vec![];
 
         let pixel_on_screen = current_x >= 0 && current_x < WIDTH as i32;
@@ -330,9 +311,11 @@ impl PPU {
             }
         }
 
+        /*
         if overlapping_objects.len() > 1 {
-            //println!("Overlapping! {:?}", overlapping_objects);
-        }
+            println!("Overlapping! {:?}", overlapping_objects);
+        }*/
+
         //TODO: Handle object priority here
         if overlapping_objects.is_empty() {
             None
@@ -440,7 +423,7 @@ impl PPU {
 
             //If there are objects at current coordinates push their pixels into obj_fifo
             let current_x = self.popped_pixels as i32;
-            if let (Some(obj)) = self.objects_at(current_x) {
+            if let Some(obj) = self.objects_at(current_x) {
                 self.update_obj_fifo(obj);
             }
 
@@ -514,7 +497,6 @@ impl PPU {
                 self.line_objs = None;
                 self.oamsearch(remaining_cycles);
             }
-            Idle => todo!(),
         }
     }
 
@@ -553,6 +535,7 @@ impl PPU {
                 // First line of window: window_line becomes 0
                 self.fetcher.window_line = 0;
             //TODO: Make this cleaner
+            //
             } else if new_ly >= wy && self.read(WX) < 167 && self.read(WX) > 6 {
                 // Already in window: increment
                 self.fetcher.window_line += 1;
@@ -610,7 +593,6 @@ impl PPU {
                 204 - objs as u16 * 12
             }
             VBlank => 4560,
-            _ => unreachable!(),
         }
     }
 
@@ -619,10 +601,10 @@ impl PPU {
 
         // Helper to consume cycles and detect overflow
         let mut consume = |duration: u16| -> u8 {
-
             let total = self.clock + cycles as u16; //112 + 32 -> 144 clock after execution
-            if total > duration { //144 > 80
-                let remainder = (total - duration); //After OAMSearch, we will have an overflow of
+            if total > duration {
+                //144 > 80
+                let remainder = total - duration; //After OAMSearch, we will have an overflow of
                 //64 cycles
                 overflow = Some(remainder); //Some(64)
                 remainder as u8 //64
@@ -639,11 +621,12 @@ impl PPU {
                 let remaining = consume(self.state_duration()); // 64
                 self.oamsearch(cycles.saturating_sub(remaining) as u8); // we give 112 - 64 , 48
                 // ticks to oam
-                if remaining > 0 { //yes
+                if remaining > 0 {
+                    //yes
                     self.change_to_state(PixelTransfer, remaining as u8); // change_to_state(64)
                 }
                 println!("OAMS {} - {}", cycles, remaining);
-                cycles - remaining
+                cycles.saturating_sub(remaining)
             }
 
             PixelTransfer => {
@@ -653,7 +636,7 @@ impl PPU {
                     self.change_to_state(HBlank, remaining as u8);
                 }
                 println!("PixelT {} - {}", cycles, remaining);
-                cycles - remaining
+                cycles.saturating_sub(remaining)
             }
 
             HBlank => {
@@ -666,7 +649,7 @@ impl PPU {
                     self.change_to_state(next_state, remaining as u8);
                 }
                 println!("HBlank {} - {}", cycles, remaining);
-                cycles - remaining
+                cycles.saturating_sub(remaining)
             }
 
             VBlank => {
@@ -677,10 +660,8 @@ impl PPU {
                     self.change_to_state(OAMSearch, remaining as u8);
                 }
                 println!("VBlank {} - {}", cycles, remaining);
-                cycles - remaining
+                cycles.saturating_sub(remaining)
             }
-
-            _ => todo!(),
         };
 
         // Update clock: if no overflow, add consumed cycles; otherwise, set to overflow
@@ -694,8 +675,8 @@ impl PPU {
 
 #[derive(Copy, Clone)]
 pub struct Pixel {
-    pub color: u8, // 0–3 after palette
-    pub bg_priority: bool,
+    pub color: u8,          // 0–3 after palette
+    pub _bg_priority: bool, //Not used yet (only for GBC)
     pub sprite_priority: bool,
     pub palette: Option<u8>,
 }
@@ -747,10 +728,6 @@ impl PixelFIFO {
         self.queue.clear();
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.queue.len() == 0
-    }
-
     pub fn push_tile_from_bytes(&mut self, low: u8, high: u8, obj: Option<Obj>) {
         let sprite_priority = obj.as_ref().map(|o| o.priority == 0).unwrap_or(false);
         let palette = obj.as_ref().map(|o| Some(o.palette)).unwrap_or(None);
@@ -762,7 +739,7 @@ impl PixelFIFO {
 
             self.push(Pixel {
                 color,
-                bg_priority: false,
+                _bg_priority: false,
                 sprite_priority,
                 palette,
             });
@@ -777,7 +754,6 @@ enum FetcherState {
     GetTileIndex,
     GetTileLow,
     GetTileHigh,
-    Sleep,
     PushToFifo,
 }
 
@@ -791,11 +767,7 @@ struct PixelFetcher {
     tile_index: u8,
     low_byte: u8,
     high_byte: u8,
-
-    window_line: u8, // NEW: track how many lines of the window have been drawn
-    ly_where_window_is_active: u8,
-
-    discard_pixels: u8,
+    window_line: u8,
 }
 
 impl fmt::Debug for PixelFetcher {
@@ -831,8 +803,6 @@ impl PixelFetcher {
             clock: 0,
 
             window_line: 0,
-            ly_where_window_is_active: 0,
-            discard_pixels: 0,
         }
     }
 
@@ -869,12 +839,6 @@ impl PixelFetcher {
         bytes
     }
 
-    /*
-    fn using_window(&self, lcdc: &LcdcRegister, wx: u8, wy: u8, scx: u8) -> bool {
-        let pixel_x = (self.tile_x as u16) * 8;
-        let visible_x = (pixel_x as i16 - scx as i16).clamp(0, 159) as u8;
-        lcdc.window_enabled && self.internal_ly >= wy && visible_x >= wx
-    }*/
     fn using_window(&self, lcdc: &LcdcRegister, wx: u8, wy: u8) -> bool {
         if !lcdc.window_enabled {
             return false;
@@ -891,7 +855,6 @@ impl PixelFetcher {
     fn get_tile_idx(&mut self) {
         let lcdc = self.fetch_lcdc_register();
         self.internal_ly = self.read(LY);
-        let scx = self.read(SCX);
         let scy = self.read(SCY);
         let wx = self.read(WX).wrapping_sub(7) as u8; // Window X is offset by 7
         let wy = self.read(WY);
@@ -995,7 +958,6 @@ impl PixelFetcher {
         self.state = FetcherState::PushToFifo;
     }
 
-    //Q1: How many pixels does this push?
     fn push_to_fifo(&mut self, fifo: &mut PixelFIFO) {
         // Push 8 pixels from low/high bytes to FIFO
         if !fifo.can_push() {
@@ -1038,7 +1000,6 @@ impl PixelFetcher {
                     return;
                 }
             }
-            Sleep => {}
         }
     }
 }
