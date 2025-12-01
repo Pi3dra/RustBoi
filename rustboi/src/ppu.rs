@@ -466,11 +466,12 @@ impl PPU {
         self.write(STAT, stat);
     }
 
+    //TODO: this is incorrectly dropping some cycles thanks to the saturating sub;
     fn change_to_state(&mut self, state: State, remaining_cycles: u8) {
         //This supposes we are always right when changing state, and
         //We are thus  changing to state with a correct timing
         self.clock = 0;
-        println!("cleared clock");
+        //println!("cleared clock");
         self.set_state(state.clone());
         self.check_stat_interrupt();
 
@@ -615,7 +616,7 @@ impl PPU {
 
         /*
         );*/
-        println!("STEP {} cycles, {} clock", cycles, self.clock);
+        //println!("STEP {} cycles, {} clock", cycles, self.clock);
         let consumed = match self.state {
             OAMSearch => {
                 let remaining = consume(self.state_duration()); // 64
@@ -625,7 +626,7 @@ impl PPU {
                     //yes
                     self.change_to_state(PixelTransfer, remaining as u8); // change_to_state(64)
                 }
-                println!("OAMS {} - {}", cycles, remaining);
+                //println!("OAMS {} - {}", cycles, remaining);
                 cycles.saturating_sub(remaining)
             }
 
@@ -635,7 +636,7 @@ impl PPU {
                 if remaining > 0 && self.popped_pixels >= (self.fine_scroll_x as u16 + 160) {
                     self.change_to_state(HBlank, remaining as u8);
                 }
-                println!("PixelT {} - {}", cycles, remaining);
+                //println!("PixelT {} - {}", cycles, remaining);
                 cycles.saturating_sub(remaining)
             }
 
@@ -648,7 +649,7 @@ impl PPU {
                     let next_state = if prev_ly == 143 { VBlank } else { OAMSearch };
                     self.change_to_state(next_state, remaining as u8);
                 }
-                println!("HBlank {} - {}", cycles, remaining);
+                //println!("HBlank {} - {}", cycles, remaining);
                 cycles.saturating_sub(remaining)
             }
 
@@ -659,7 +660,7 @@ impl PPU {
                     self.framebuffer = Some(self.viewport.clone());
                     self.change_to_state(OAMSearch, remaining as u8);
                 }
-                println!("VBlank {} - {}", cycles, remaining);
+                //println!("VBlank {} - {}", cycles, remaining);
                 cycles.saturating_sub(remaining)
             }
         };
