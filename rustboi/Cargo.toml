@@ -5,11 +5,11 @@ edition = "2024"
 
 
 [lib]
-name = "gameboy_emu"
+name = "rust_boi"
 crate-type = ["cdylib"]
 
 [[bin]]
-name = "gameboy_emu"
+name = "rust_boi"
 path = "src/main.rs"
 
 [dependencies]

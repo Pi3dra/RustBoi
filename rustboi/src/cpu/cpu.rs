@@ -5,7 +5,8 @@ use std::rc::Rc;
 
 //Try this: https://robertheaton.com/gameboy-doctor/
 
-const ZERO: u8 = 7; //Z const SUBSTRACTION: u8 = 6; //N
+const ZERO: u8 = 7; //Z 
+const SUBSTRACTION: u8 = 6; //N
 const HALFCARRY: u8 = 5; //H
 const CARRY: u8 = 4; //C
 
