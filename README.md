@@ -1,6 +1,8 @@
 # RustBoi
 
 This is a **GameBoy** emulator written in rust!
+![Demo GIF](/test_roms/Tetris.gif)
+
 
 It uses the **Libretro API** to run on the **RetroArch** frontend.
 https://www.retroarch.com/
